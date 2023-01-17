@@ -4,8 +4,7 @@ A generic websocket proxy for [Web Terminal Operator](https://github.com/redhat-
 
 ## Why do we need yet another proxy?
 
-TBD
-
+When we want to utilize the Kubernetes `exec` endpoint to execute commands in the pod, we have to authorize using the `Authorization: Bearer` header. JavaScript [WebSocket API](https://websockets.spec.whatwg.org/#the-websocket-interface), which is supported by modern browsers, does not allow additional headers. We have to have a proxy that will accept input from the frontend, and after adding this header, it will send it to the `exec` endpoint. 
 ## Developer guide
 
 TBD
