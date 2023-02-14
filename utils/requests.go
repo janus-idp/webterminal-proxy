@@ -17,18 +17,16 @@ var restClient = &http.Client{
 }
 
 const (
-	NAMESPACE                 = "openshift-terminal"
 	USER_ENDPOINT             = "apis/user.openshift.io/v1/users/~"
-	SERVICE_ENDPOINT          = "api/v1/namespaces/" + NAMESPACE + "/services"
 	SERVICE_EXEC_ENDPOINT     = "service:4444/proxy/exec/init"
 	SERVICE_ACTIVITY_ENDPOINT = "service:4444/proxy/activity/tick"
 )
 
-var DEVWORKSPACE_ENDPOINT = "apis/workspace.devfile.io/v1alpha2/namespaces/" + NAMESPACE + "/devworkspaces"
+var DEVWORKSPACE_ENDPOINT = "apis/workspace.devfile.io/v1alpha2/namespaces"
 
 func SetupUserPod(connectionData ConnectionData, config *Config) (string, error) {
 	payload, _ := json.Marshal(config)
-	request, err := http.NewRequest("POST", fmt.Sprintf("https://%s/%s/https:%s-%s", connectionData.Link, SERVICE_ENDPOINT, connectionData.WorkspaceID, SERVICE_EXEC_ENDPOINT), bytes.NewBuffer(payload))
+	request, err := http.NewRequest("POST", fmt.Sprintf("https://%s/api/v1/namespaces/%s/services/https:%s-%s", connectionData.Link, connectionData.Namespace, connectionData.WorkspaceID, SERVICE_EXEC_ENDPOINT), bytes.NewBuffer(payload))
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +66,7 @@ func GetUserName(connectionData ConnectionData) (string, error) {
 }
 
 func CleanAfterDisconnect(connectionData ConnectionData) {
-	request, err := http.NewRequest("DELETE", fmt.Sprintf("https://%s/%s/%s", connectionData.Link, DEVWORKSPACE_ENDPOINT, connectionData.TerminalID), nil)
+	request, err := http.NewRequest("DELETE", fmt.Sprintf("https://%s/%s/%s/devworkspaces/%s", connectionData.Link, DEVWORKSPACE_ENDPOINT, connectionData.Namespace, connectionData.TerminalID), nil)
 	if err != nil {
 		log.Println(err)
 		return
@@ -82,12 +80,13 @@ func CleanAfterDisconnect(connectionData ConnectionData) {
 		return
 	}
 	if response.StatusCode != 200 {
+		log.Println(response.StatusCode)
 		log.Println("Error while deleting workspace")
 	}
 }
 
 func SendActivityTick(connectionData ConnectionData) error {
-	request, err := http.NewRequest("POST", fmt.Sprintf("https://%s/%s/https:%s-%s", connectionData.Link, SERVICE_ENDPOINT, connectionData.WorkspaceID, SERVICE_ACTIVITY_ENDPOINT), nil)
+	request, err := http.NewRequest("POST", fmt.Sprintf("https://%s/api/v1/namespaces/%s/services/https:%s-%s", connectionData.Link, connectionData.Namespace, connectionData.WorkspaceID, SERVICE_ACTIVITY_ENDPOINT), nil)
 	if err != nil {
 		return err
 	}

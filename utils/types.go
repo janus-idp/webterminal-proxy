@@ -7,6 +7,7 @@ type ConnectionData struct {
 	TerminalID   string
 	WorkspaceID  string
 	TerminalSize []string
+	Namespace    string
 }
 
 type KubeConfig struct {
