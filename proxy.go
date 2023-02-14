@@ -22,6 +22,7 @@ const (
 	WORKSPACE_ID_SUBPROTOCOL        = "base64url.workspace.id.k8s.io."
 	TERMINAL_ID_SUBPROTOCOL         = "base64url.terminal.id.k8s.io."
 	TERMINAL_SIZE_SUBPROTOCOL       = "base64url.terminal.size.k8s.io."
+	NAMESPACE                       = "base64url.namespace.k8s.io."
 )
 
 var upgrader = websocket.Upgrader{
@@ -52,7 +53,7 @@ func setupPod(connectionData utils.ConnectionData) (string, error) {
 		Container: CONTAINER,
 		Kubeconfig: utils.KubeConfig{
 			Username:  username,
-			Namespace: utils.NAMESPACE,
+			Namespace: connectionData.Namespace,
 		},
 	}
 	podID, err := utils.SetupUserPod(connectionData, config)
@@ -65,36 +66,33 @@ func setupPod(connectionData utils.ConnectionData) (string, error) {
 func parseSubprotocols(r *http.Request) (utils.ConnectionData, error) {
 	var connectionData utils.ConnectionData
 	var err error
+
 	for _, subprotocol := range strings.Split(r.Header.Get("Sec-WebSocket-Protocol"), ", ") {
 		subprotocol = strings.TrimSpace(subprotocol)
-		switch {
-		case strings.HasPrefix(subprotocol, SERVER_ADDRESS_SUBPROTOCOL):
-			connectionData.Link, err = url.QueryUnescape(strings.TrimPrefix(subprotocol, SERVER_ADDRESS_SUBPROTOCOL))
-			if err != nil {
-				return connectionData, err
-			}
-		case strings.HasPrefix(subprotocol, AUTHORIZATION_TOKEN_SUBPROTOCOL):
-			connectionData.Token, err = url.QueryUnescape(strings.TrimPrefix(subprotocol, AUTHORIZATION_TOKEN_SUBPROTOCOL))
-			if err != nil {
-				return connectionData, err
-			}
-		case strings.HasPrefix(subprotocol, WORKSPACE_ID_SUBPROTOCOL):
-			connectionData.WorkspaceID, err = url.QueryUnescape(strings.TrimPrefix(subprotocol, WORKSPACE_ID_SUBPROTOCOL))
-			if err != nil {
-				return connectionData, err
-			}
-		case strings.HasPrefix(subprotocol, TERMINAL_ID_SUBPROTOCOL):
-			connectionData.TerminalID, err = url.QueryUnescape(strings.TrimPrefix(subprotocol, TERMINAL_ID_SUBPROTOCOL))
-			if err != nil {
-				return connectionData, err
-			}
-		case strings.HasPrefix(subprotocol, TERMINAL_SIZE_SUBPROTOCOL):
+
+		myMap := map[string]*string{
+			SERVER_ADDRESS_SUBPROTOCOL:      &connectionData.Link,
+			AUTHORIZATION_TOKEN_SUBPROTOCOL: &connectionData.Token,
+			WORKSPACE_ID_SUBPROTOCOL:        &connectionData.WorkspaceID,
+			TERMINAL_ID_SUBPROTOCOL:         &connectionData.TerminalID,
+			NAMESPACE:                       &connectionData.Namespace,
+		}
+		if strings.HasPrefix(subprotocol, TERMINAL_SIZE_SUBPROTOCOL) {
 			terminalSize, err := url.QueryUnescape(strings.TrimPrefix(subprotocol, TERMINAL_SIZE_SUBPROTOCOL))
 			if err != nil {
 				return connectionData, err
 			}
 			connectionData.TerminalSize = strings.Split(terminalSize, "x")
-		default:
+		}
+
+		for prefix, field := range myMap {
+			if strings.HasPrefix(subprotocol, prefix) {
+				*field, err = url.QueryUnescape(strings.TrimPrefix(subprotocol, prefix))
+				if err != nil {
+					return connectionData, err
+				}
+				break
+			}
 		}
 
 	}
@@ -106,7 +104,7 @@ func connectWebsocketServer(connectionData utils.ConnectionData) *websocket.Conn
 	dialer := websocket.DefaultDialer
 	dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	command := setupCommandString(connectionData)
-	c, response, err := dialer.Dial(fmt.Sprintf("wss://%s/api/v1/namespaces/%s/pods/%s/exec?&container=%s%s", connectionData.Link, utils.NAMESPACE, connectionData.PodID, CONTAINER, command), http.Header{"Authorization": []string{"Bearer " + connectionData.Token}})
+	c, response, err := dialer.Dial(fmt.Sprintf("wss://%s/api/v1/namespaces/%s/pods/%s/exec?&container=%s%s", connectionData.Link, connectionData.Namespace, connectionData.PodID, CONTAINER, command), http.Header{"Authorization": []string{"Bearer " + connectionData.Token}})
 	if err != nil {
 		log.Fatal("Unable to connect a pod: ", err, " With response: ", response)
 		return nil
