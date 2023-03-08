@@ -94,10 +94,8 @@ func parseSubprotocols(r *http.Request) (utils.ConnectionData, error) {
 				break
 			}
 		}
-
 	}
 	return connectionData, nil
-
 }
 
 func connectWebsocketServer(connectionData utils.ConnectionData) *websocket.Conn {
