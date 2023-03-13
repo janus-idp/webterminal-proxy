@@ -1,0 +1,15 @@
+run:
+  deadline: 5m
+
+# Use `golangci-lint help linters` for info about all available linters 
+# Install golangci here: https://golangci-lint.run/usage/install/
+
+linters:
+  disable-all: true
+  enable:
+    - gofmt
+    - whitespace
+    - gci
+    - misspell
+  fast: false
+
