@@ -102,3 +102,42 @@ func SendActivityTick(connectionData ConnectionData) error {
 	}
 	return nil
 }
+
+func SendPostRequest(url string, payload []byte, authorizationToken string) ([]byte, int, error) {
+	request, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	request.Header = http.Header{
+		"Authorization": {authorizationToken},
+		"Content-Type":  {"application/json"},
+	}
+	response, err := restClient.Do(request)
+	if err != nil {
+		return nil, response.StatusCode, err
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return body, response.StatusCode, nil
+}
+
+func SendGetRequest(url string, authorizationToken string) ([]byte, int, error) {
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	request.Header = http.Header{
+		"Authorization": {authorizationToken},
+	}
+	response, err := restClient.Do(request)
+	if err != nil {
+		return nil, response.StatusCode, err
+	}
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+	return body, response.StatusCode, nil
+}
