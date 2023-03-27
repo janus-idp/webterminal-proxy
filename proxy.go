@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -174,6 +175,52 @@ func terminalOutput(clientConnection *websocket.Conn, podConnection *websocket.C
 		}
 	}
 }
+
+func handleRestRequest(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
+	w.Header().Add("Vary", "Origin")
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	parsedUrl, err := url.Parse(r.URL.String())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	url, err := url.QueryUnescape(parsedUrl.Query().Get("url"))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	authorizationToken := r.Header.Get("Authorization")
+	if authorizationToken == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	var body []byte = nil
+	statusCode := http.StatusInternalServerError
+	switch r.Method {
+	case "GET":
+		body, statusCode, err = utils.SendGetRequest(url, authorizationToken)
+	case "POST":
+		requestBody, _ := io.ReadAll(r.Body)
+		body, statusCode, err = utils.SendPostRequest(url, requestBody, authorizationToken)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(statusCode)
+	w.Write(body)
+}
+
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	h := http.Header{}
 	h.Set("Sec-WebSocket-Protocol", HANDSHAKE_SUBPROTOCOL)
@@ -205,6 +252,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func setupRoute() {
+	http.HandleFunc("/rest", handleRestRequest)
 	http.HandleFunc("/", handleWebsocket)
 }
 
