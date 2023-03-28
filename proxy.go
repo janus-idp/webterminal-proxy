@@ -252,8 +252,8 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func setupRoute() {
-	http.HandleFunc("/rest", handleRestRequest)
-	http.HandleFunc("/", handleWebsocket)
+	http.HandleFunc("/webterminal/rest", handleRestRequest)
+	http.HandleFunc("/webterminal", handleWebsocket)
 }
 
 func main() {
